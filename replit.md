@@ -100,6 +100,8 @@ The application follows a modern full-stack architecture with clear separation b
 Changelog:
 - July 03, 2025. Initial setup
 - July 03, 2025. Implemented PostgreSQL database with Drizzle ORM, migrated from in-memory storage to persistent database storage
+- July 03, 2025. Enhanced dashboard layout with main reports view, added cancel button to form, improved visual hierarchy with performance indicators
+- July 03, 2025. Added comprehensive README.md with complete self-hosting documentation
 
 ## User Preferences
 
