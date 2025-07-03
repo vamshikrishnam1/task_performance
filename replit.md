@@ -20,10 +20,11 @@ The application follows a modern full-stack architecture with clear separation b
 ### Backend Architecture
 - **Runtime**: Node.js with Express.js
 - **Language**: TypeScript with ES modules
-- **Database**: PostgreSQL with Drizzle ORM
+- **Database**: PostgreSQL with Drizzle ORM (DatabaseStorage implementation)
 - **Database Provider**: Neon Database (serverless PostgreSQL)
 - **API Pattern**: RESTful API with JSON responses
 - **Session Management**: Built-in Express session handling
+- **Storage**: Database-backed persistent storage for weekly reports
 
 ## Key Components
 
@@ -98,6 +99,7 @@ The application follows a modern full-stack architecture with clear separation b
 
 Changelog:
 - July 03, 2025. Initial setup
+- July 03, 2025. Implemented PostgreSQL database with Drizzle ORM, migrated from in-memory storage to persistent database storage
 
 ## User Preferences
 

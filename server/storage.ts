@@ -1,4 +1,6 @@
 import { weeklyReports, type WeeklyReport, type InsertWeeklyReport } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Weekly reports methods
@@ -8,39 +10,37 @@ export interface IStorage {
   deleteWeeklyReport(id: number): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private weeklyReports: Map<number, WeeklyReport>;
-  currentReportId: number;
-
-  constructor() {
-    this.weeklyReports = new Map();
-    this.currentReportId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async createWeeklyReport(insertReport: InsertWeeklyReport): Promise<WeeklyReport> {
-    const id = this.currentReportId++;
-    const report: WeeklyReport = {
-      ...insertReport,
-      id,
-      createdAt: new Date(),
-    };
-    this.weeklyReports.set(id, report);
+    const [report] = await db
+      .insert(weeklyReports)
+      .values(insertReport)
+      .returning();
     return report;
   }
 
   async getWeeklyReports(): Promise<WeeklyReport[]> {
-    return Array.from(this.weeklyReports.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const reports = await db
+      .select()
+      .from(weeklyReports)
+      .orderBy(desc(weeklyReports.createdAt));
+    return reports;
   }
 
   async getWeeklyReportById(id: number): Promise<WeeklyReport | undefined> {
-    return this.weeklyReports.get(id);
+    const [report] = await db
+      .select()
+      .from(weeklyReports)
+      .where(eq(weeklyReports.id, id));
+    return report || undefined;
   }
 
   async deleteWeeklyReport(id: number): Promise<boolean> {
-    return this.weeklyReports.delete(id);
+    const result = await db
+      .delete(weeklyReports)
+      .where(eq(weeklyReports.id, id));
+    return (result.rowCount || 0) > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
