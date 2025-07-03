@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Calculator, Save, RefreshCw, Table } from "lucide-react";
+import { Plus, Calculator, Save, RefreshCw, Table, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -54,7 +54,12 @@ const avatarColors: Record<string, string> = {
   vamshi: "bg-yellow-100 text-yellow-600"
 };
 
-export default function ReportForm() {
+interface ReportFormProps {
+  onReportCreated?: () => void;
+  onCancel?: () => void;
+}
+
+export default function ReportForm({ onReportCreated, onCancel }: ReportFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [teamData, setTeamData] = useState<Record<string, Partial<TeamMemberData>>>({});
@@ -81,6 +86,7 @@ export default function ReportForm() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
       resetForm();
+      onReportCreated?.();
     },
     onError: (error) => {
       toast({
@@ -445,34 +451,50 @@ export default function ReportForm() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-6">
-              <Button 
-                type="button" 
-                onClick={calculateMetrics}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Calculator className="h-4 w-4 mr-2" />
-                Calculate TCR & TPR
-              </Button>
+            <div className="space-y-4 pt-6">
+              {onCancel && (
+                <div className="flex justify-start">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={onCancel}
+                    className="text-slate-600 hover:text-slate-900"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Reports
+                  </Button>
+                </div>
+              )}
               
-              <Button 
-                type="submit" 
-                disabled={createReportMutation.isPending}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {createReportMutation.isPending ? "Saving..." : "Save Report"}
-              </Button>
-              
-              <Button 
-                type="button" 
-                variant="outline"
-                onClick={resetForm}
-                className="border-slate-300 text-slate-700 hover:bg-slate-50"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Reset
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button 
+                  type="button" 
+                  onClick={calculateMetrics}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Calculate TCR & TPR
+                </Button>
+                
+                <Button 
+                  type="submit" 
+                  disabled={createReportMutation.isPending}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {createReportMutation.isPending ? "Saving..." : "Save Report"}
+                </Button>
+                
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={resetForm}
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
+              </div>
             </div>
           </form>
         </Form>
