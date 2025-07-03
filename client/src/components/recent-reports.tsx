@@ -6,7 +6,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { type WeeklyReport } from "@shared/schema";
 
-export default function RecentReports() {
+interface RecentReportsProps {
+  onViewReport: (report: WeeklyReport) => void;
+}
+
+export default function RecentReports({ onViewReport }: RecentReportsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -35,12 +39,7 @@ export default function RecentReports() {
   });
 
   const handleView = (report: WeeklyReport) => {
-    // TODO: Implement view functionality
-    console.log("View report:", report);
-    toast({
-      title: "View Report",
-      description: "Report viewing functionality to be implemented",
-    });
+    onViewReport(report);
   };
 
   const handleExport = (report: WeeklyReport) => {
