@@ -323,11 +323,11 @@
                         
                         // Calculate TPR
                         const bugs = data.bugs || {};
-                        const actualBugScore = (bugs.critical || 0) * 5 + (bugs.high || 0) * 4 + 
-                                             (bugs.medium || 0) * 3 + (bugs.low || 0) * 2;
-                        const totalBugs = (bugs.critical || 0) + (bugs.high || 0) + 
-                                         (bugs.medium || 0) + (bugs.low || 0);
-                        const maxBugScore = totalBugs * 5;
+                        const actualBugScore = (bugs.critical || 0) * 3 + (bugs.major || 0) * 2 + 
+                                             (bugs.minor || 0) * 1;
+                        const totalBugs = (bugs.critical || 0) + (bugs.major || 0) + 
+                                         (bugs.minor || 0);
+                        const maxBugScore = totalBugs * 3;
                         
                         if (maxBugScore > 0) {
                             data.tpr = Math.round(((maxBugScore - actualBugScore) / maxBugScore) * 100 * 10) / 10;
@@ -438,7 +438,7 @@
                                     <div key={member} className="border border-gray-200 rounded-lg p-4">
                                         <h4 className="font-medium text-gray-900 mb-3 capitalize">{member}</h4>
                                         
-                                        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                     Assigned
@@ -483,15 +483,15 @@
                                             
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    High Bugs
+                                                    Major Bugs
                                                 </label>
                                                 <input
                                                     type="number"
                                                     min="0"
-                                                    value={formData.teamData[member]?.bugs?.high || ''}
+                                                    value={formData.teamData[member]?.bugs?.major || ''}
                                                     onChange={(e) => handleTeamDataChange(member, 'bugs', {
                                                         ...formData.teamData[member]?.bugs,
-                                                        high: parseInt(e.target.value) || 0
+                                                        major: parseInt(e.target.value) || 0
                                                     })}
                                                     className="input"
                                                 />
@@ -499,31 +499,15 @@
                                             
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Medium Bugs
+                                                    Minor Bugs
                                                 </label>
                                                 <input
                                                     type="number"
                                                     min="0"
-                                                    value={formData.teamData[member]?.bugs?.medium || ''}
+                                                    value={formData.teamData[member]?.bugs?.minor || ''}
                                                     onChange={(e) => handleTeamDataChange(member, 'bugs', {
                                                         ...formData.teamData[member]?.bugs,
-                                                        medium: parseInt(e.target.value) || 0
-                                                    })}
-                                                    className="input"
-                                                />
-                                            </div>
-                                            
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Low Bugs
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    value={formData.teamData[member]?.bugs?.low || ''}
-                                                    onChange={(e) => handleTeamDataChange(member, 'bugs', {
-                                                        ...formData.teamData[member]?.bugs,
-                                                        low: parseInt(e.target.value) || 0
+                                                        minor: parseInt(e.target.value) || 0
                                                     })}
                                                     className="input"
                                                 />
@@ -648,9 +632,8 @@
                                                 <td className="py-3 px-4 text-gray-700">
                                                     <div className="text-xs">
                                                         <span className="text-red-600">C: {data.bugs?.critical || 0}</span>,{' '}
-                                                        <span className="text-orange-600">H: {data.bugs?.high || 0}</span>,{' '}
-                                                        <span className="text-yellow-600">M: {data.bugs?.medium || 0}</span>,{' '}
-                                                        <span className="text-blue-600">L: {data.bugs?.low || 0}</span>
+                                                        <span className="text-orange-600">M: {data.bugs?.major || 0}</span>,{' '}
+                                                        <span className="text-yellow-600">m: {data.bugs?.minor || 0}</span>
                                                     </div>
                                                 </td>
                                             </tr>
