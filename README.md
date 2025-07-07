@@ -1,6 +1,14 @@
 # Team Performance Dashboard
 
-A web application for tracking team performance metrics and generating weekly reports.
+A simple web application for tracking team performance metrics and generating weekly reports.
+
+## Technology Stack
+
+- **Backend**: Go with Gorilla Mux router
+- **Database**: PostgreSQL 
+- **Frontend**: React (vanilla JS via CDN)
+- **Reverse Proxy**: Nginx
+- **Styling**: Tailwind CSS
 
 ## Self-Hosting on Debian Cloud VM
 
@@ -33,16 +41,17 @@ apt update && apt upgrade -y
 apt install -y curl wget git build-essential
 ```
 
-#### Install Node.js (version 18):
+#### Install Go (version 1.21 or higher):
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-apt install -y nodejs
+wget https://golang.org/dl/go1.21.5.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' >> /etc/profile
+source /etc/profile
 ```
 
 Verify installation:
 ```bash
-node --version
-npm --version
+go version
 ```
 
 #### Install PostgreSQL:
@@ -61,9 +70,9 @@ systemctl enable postgresql
 apt install -y nginx
 ```
 
-#### Install PM2 (process manager):
+#### Install systemd service utilities:
 ```bash
-npm install -g pm2
+apt install -y systemd
 ```
 
 ### 3. Database Setup
@@ -94,9 +103,10 @@ cd /var/www/team-performance
 git clone https://github.com/your-username/team-performance-dashboard.git .
 ```
 
-#### Install dependencies:
+#### Install Go dependencies:
 ```bash
-npm install
+go mod download
+go mod tidy
 ```
 
 #### Create environment file:
@@ -106,62 +116,48 @@ nano .env
 
 Add configuration:
 ```env
-DATABASE_URL="postgresql://app_user:your_secure_password@localhost:5432/team_performance"
-PORT=5000
-NODE_ENV=production
-```
-
-#### Set up database schema:
-```bash
-npm run db:push
+DATABASE_URL=postgresql://app_user:your_secure_password@localhost:5432/team_performance
+PORT=8080
 ```
 
 #### Build application:
 ```bash
-npm run build
+go build -o team-performance-dashboard main.go
 ```
 
-### 5. Process Management with PM2
+### 5. Create Systemd Service
 
-Create PM2 ecosystem file:
+Create systemd service file:
 ```bash
-nano ecosystem.config.js
+nano /etc/systemd/system/team-performance.service
 ```
 
 Add configuration:
-```javascript
-module.exports = {
-  apps: [{
-    name: 'team-performance-dashboard',
-    script: 'npm',
-    args: 'start',
-    cwd: '/var/www/team-performance',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 5000
-    },
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G',
-    error_file: './logs/err.log',
-    out_file: './logs/out.log',
-    log_file: './logs/combined.log',
-    time: true
-  }]
-};
+```ini
+[Unit]
+Description=Team Performance Dashboard
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/team-performance
+ExecStart=/var/www/team-performance/team-performance-dashboard
+Restart=always
+RestartSec=3
+Environment=DATABASE_URL=postgresql://app_user:your_secure_password@localhost:5432/team_performance
+Environment=PORT=8080
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-Create logs directory:
+Enable and start service:
 ```bash
-mkdir -p logs
-```
-
-Start application with PM2:
-```bash
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup
+systemctl daemon-reload
+systemctl enable team-performance
+systemctl start team-performance
 ```
 
 ### 6. Nginx Configuration
@@ -178,7 +174,7 @@ server {
     server_name your-domain.com;  # Replace with your domain or IP
 
     location / {
-        proxy_pass http://localhost:5000;
+        proxy_pass http://localhost:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -233,34 +229,12 @@ chown -R www-data:www-data /var/www/team-performance
 chmod -R 755 /var/www/team-performance
 ```
 
-### 10. System Service Configuration
+### 10. File Permissions
 
-Create systemd service for auto-start:
+Set proper ownership and permissions:
 ```bash
-nano /etc/systemd/system/team-performance.service
-```
-
-Add configuration:
-```ini
-[Unit]
-Description=Team Performance Dashboard
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/var/www/team-performance
-ExecStart=/usr/bin/pm2 start ecosystem.config.js --no-daemon
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable service:
-```bash
-systemctl enable team-performance
-systemctl start team-performance
+chown -R www-data:www-data /var/www/team-performance
+chmod +x /var/www/team-performance/team-performance-dashboard
 ```
 
 ## Post-Installation
@@ -297,9 +271,8 @@ Your application should now be accessible at:
 ```bash
 cd /var/www/team-performance
 git pull origin main
-npm install
-npm run build
-pm2 restart team-performance-dashboard
+go build -o team-performance-dashboard main.go
+systemctl restart team-performance
 ```
 
 ### Backup Database
@@ -311,7 +284,7 @@ sudo -u postgres pg_dump team_performance > backup_$(date +%Y%m%d_%H%M%S).sql
 ### Monitor Resources
 
 ```bash
-pm2 monit
+systemctl status team-performance
 htop
 df -h
 ```
@@ -319,7 +292,7 @@ df -h
 ### View Logs
 
 ```bash
-pm2 logs team-performance-dashboard
+journalctl -u team-performance -f
 tail -f /var/log/nginx/access.log
 tail -f /var/log/nginx/error.log
 ```
@@ -327,14 +300,20 @@ tail -f /var/log/nginx/error.log
 ## Troubleshooting
 
 ### Application won't start
-- Check logs: `pm2 logs`
-- Verify database connection: `npm run db:push`
-- Check environment variables: `cat .env`
+- Check logs: `journalctl -u team-performance`
+- Verify database connection: Test with `sudo -u postgres psql -d team_performance`
+- Check environment variables in systemd service file
+- Verify binary has execute permissions: `ls -la /var/www/team-performance/team-performance-dashboard`
 
 ### Database connection issues
 - Verify PostgreSQL is running: `systemctl status postgresql`
 - Check database exists: `sudo -u postgres psql -l`
 - Test connection: `sudo -u postgres psql -d team_performance`
+
+### Build errors
+- Ensure Go is properly installed: `go version`
+- Check Go module dependencies: `go mod verify`
+- Clean and rebuild: `go clean && go build -o team-performance-dashboard main.go`
 
 ### Nginx errors
 - Check configuration: `nginx -t`

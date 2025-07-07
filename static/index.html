@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Performance Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .card {
+            @apply bg-white rounded-lg shadow-md border border-gray-200;
+        }
+        .btn {
+            @apply px-4 py-2 rounded font-medium focus:outline-none focus:ring-2 focus:ring-opacity-50;
+        }
+        .btn-primary {
+            @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+        }
+        .btn-secondary {
+            @apply bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-500;
+        }
+        .btn-danger {
+            @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+        }
+        .btn-success {
+            @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-500;
+        }
+        .input {
+            @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+        }
+        .select {
+            @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const TEAM_MEMBERS = [
+            'deepak', 'jitin', 'minhaj', 'prateek', 
+            'ashish', 'dheeraj', 'ravi bhagat', 'sahitya'
+        ];
+
+        const WEEK_OWNERS = [
+            'deepak', 'jitin', 'minhaj', 'prateek',
+            'ashish', 'dheeraj', 'ravi bhagat', 'sahitya'
+        ];
+
+        function App() {
+            const [view, setView] = useState('reports');
+            const [reports, setReports] = useState([]);
+            const [selectedReport, setSelectedReport] = useState(null);
+            const [loading, setLoading] = useState(false);
+
+            useEffect(() => {
+                fetchReports();
+            }, []);
+
+            const fetchReports = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch('/api/reports');
+                    const data = await response.json();
+                    setReports(data || []);
+                } catch (error) {
+                    console.error('Error fetching reports:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleViewReport = (report) => {
+                setSelectedReport(report);
+                setView('view');
+            };
+
+            const handleCreateReport = () => {
+                setView('create');
+            };
+
+            const handleBackToReports = () => {
+                setView('reports');
+                setSelectedReport(null);
+                fetchReports();
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-100">
+                    <header className="bg-white shadow-sm border-b border-gray-200">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center h-16">
+                                <div className="flex items-center">
+                                    <h1 className="text-xl font-semibold text-gray-900">
+                                        Team Performance Dashboard
+                                    </h1>
+                                </div>
+                                {view === 'reports' && (
+                                    <button
+                                        onClick={handleCreateReport}
+                                        className="btn btn-primary"
+                                    >
+                                        Create New Report
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        {view === 'reports' && (
+                            <ReportsList 
+                                reports={reports} 
+                                loading={loading}
+                                onViewReport={handleViewReport}
+                                onRefresh={fetchReports}
+                            />
+                        )}
+                        {view === 'create' && (
+                            <CreateReport onBack={handleBackToReports} />
+                        )}
+                        {view === 'view' && selectedReport && (
+                            <ReportView 
+                                report={selectedReport} 
+                                onBack={handleBackToReports}
+                            />
+                        )}
+                    </main>
+                </div>
+            );
+        }
+
+        function ReportsList({ reports, loading, onViewReport, onRefresh }) {
+            const handleDelete = async (id) => {
+                if (!confirm('Are you sure you want to delete this report?')) return;
+                
+                try {
+                    const response = await fetch(`/api/reports/${id}`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        onRefresh();
+                    }
+                } catch (error) {
+                    console.error('Error deleting report:', error);
+                }
+            };
+
+            const calculateSummary = (report) => {
+                const teamData = Object.values(report.teamData || {});
+                if (teamData.length === 0) return { avgTCR: 0, avgTPR: 0, totalTasks: 0 };
+                
+                const totalTasks = teamData.reduce((sum, data) => sum + data.assigned, 0);
+                const avgTCR = teamData.reduce((sum, data) => sum + data.tcr, 0) / teamData.length;
+                const avgTPR = teamData.reduce((sum, data) => sum + data.tpr, 0) / teamData.length;
+                
+                return { 
+                    avgTCR: Math.round(avgTCR * 10) / 10, 
+                    avgTPR: Math.round(avgTPR * 10) / 10, 
+                    totalTasks 
+                };
+            };
+
+            if (loading) {
+                return <div className="text-center py-8">Loading reports...</div>;
+            }
+
+            return (
+                <div className="space-y-6">
+                    {reports.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="card p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Total Reports</p>
+                                        <p className="text-3xl font-bold text-gray-900">{reports.length}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="card p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Latest Report</p>
+                                        <p className="text-lg font-semibold text-gray-900 capitalize">
+                                            {reports[0]?.weekOwner || 'N/A'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="card p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Team Members</p>
+                                        <p className="text-3xl font-bold text-gray-900">8</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="card">
+                        <div className="px-6 py-4 border-b border-gray-200">
+                            <h2 className="text-lg font-semibold text-gray-900">Weekly Reports</h2>
+                            <p className="text-sm text-gray-600">View and manage team performance reports</p>
+                        </div>
+                        
+                        <div className="p-6">
+                            {reports.length === 0 ? (
+                                <div className="text-center py-12 text-gray-500">
+                                    <h3 className="text-xl font-medium mb-2">No reports yet</h3>
+                                    <p className="text-sm mb-4">Create your first weekly report to start tracking team performance</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {reports.map((report) => {
+                                        const summary = calculateSummary(report);
+                                        return (
+                                            <div key={report.id} className="p-6 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center space-x-3 mb-3">
+                                                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                                                                <span className="text-blue-600 font-semibold">📊</span>
+                                                            </div>
+                                                            <div>
+                                                                <h3 className="text-lg font-semibold text-gray-900">
+                                                                    Week of {report.weekStart} - {report.weekEnd}
+                                                                </h3>
+                                                                <p className="text-sm text-gray-600">
+                                                                    Owner: <span className="capitalize font-medium">{report.weekOwner}</span> • 
+                                                                    Report #{report.id}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                                            <div className="bg-gray-50 rounded-lg p-3">
+                                                                <p className="text-xs font-medium text-gray-600 mb-1">Total Tasks</p>
+                                                                <p className="text-lg font-bold text-gray-900">{summary.totalTasks}</p>
+                                                            </div>
+                                                            <div className="bg-gray-50 rounded-lg p-3">
+                                                                <p className="text-xs font-medium text-gray-600 mb-1">Avg TCR</p>
+                                                                <p className="text-lg font-bold text-gray-900">{summary.avgTCR}%</p>
+                                                            </div>
+                                                            <div className="bg-gray-50 rounded-lg p-3">
+                                                                <p className="text-xs font-medium text-gray-600 mb-1">Avg TPR</p>
+                                                                <p className="text-lg font-bold text-gray-900">{summary.avgTPR}%</p>
+                                                            </div>
+                                                            <div className="bg-gray-50 rounded-lg p-3">
+                                                                <p className="text-xs font-medium text-gray-600 mb-1">Team Size</p>
+                                                                <p className="text-lg font-bold text-gray-900">{Object.keys(report.teamData || {}).length}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex flex-col space-y-2 ml-4">
+                                                        <button
+                                                            onClick={() => onViewReport(report)}
+                                                            className="btn btn-primary text-sm"
+                                                        >
+                                                            View Details
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(report.id)}
+                                                            className="btn btn-danger text-sm"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function CreateReport({ onBack }) {
+            const [formData, setFormData] = useState({
+                weekOwner: '',
+                weekStart: '',
+                weekEnd: '',
+                teamData: {}
+            });
+            const [loading, setLoading] = useState(false);
+
+            const handleInputChange = (field, value) => {
+                setFormData(prev => ({
+                    ...prev,
+                    [field]: value
+                }));
+            };
+
+            const handleTeamDataChange = (member, field, value) => {
+                setFormData(prev => ({
+                    ...prev,
+                    teamData: {
+                        ...prev.teamData,
+                        [member]: {
+                            ...prev.teamData[member],
+                            [field]: field === 'bugs' ? value : parseInt(value) || 0
+                        }
+                    }
+                }));
+            };
+
+            const calculateMetrics = () => {
+                const updatedTeamData = { ...formData.teamData };
+                
+                Object.keys(updatedTeamData).forEach(member => {
+                    const data = updatedTeamData[member];
+                    if (data.assigned && data.assigned > 0) {
+                        // Calculate TCR
+                        data.tcr = Math.round((data.completed / data.assigned) * 100 * 10) / 10;
+                        
+                        // Calculate TPR
+                        const bugs = data.bugs || {};
+                        const actualBugScore = (bugs.critical || 0) * 5 + (bugs.high || 0) * 4 + 
+                                             (bugs.medium || 0) * 3 + (bugs.low || 0) * 2;
+                        const totalBugs = (bugs.critical || 0) + (bugs.high || 0) + 
+                                         (bugs.medium || 0) + (bugs.low || 0);
+                        const maxBugScore = totalBugs * 5;
+                        
+                        if (maxBugScore > 0) {
+                            data.tpr = Math.round(((maxBugScore - actualBugScore) / maxBugScore) * 100 * 10) / 10;
+                        } else {
+                            data.tpr = 100;
+                        }
+                    }
+                });
+                
+                setFormData(prev => ({
+                    ...prev,
+                    teamData: updatedTeamData
+                }));
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                
+                try {
+                    const response = await fetch('/api/reports', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    if (response.ok) {
+                        onBack();
+                    }
+                } catch (error) {
+                    console.error('Error creating report:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex items-center space-x-4">
+                        <button
+                            onClick={onBack}
+                            className="btn btn-secondary"
+                        >
+                            ← Back to Reports
+                        </button>
+                        <h2 className="text-2xl font-bold text-gray-900">Create New Weekly Report</h2>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="card p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Details</h3>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Week Owner
+                                    </label>
+                                    <select
+                                        value={formData.weekOwner}
+                                        onChange={(e) => handleInputChange('weekOwner', e.target.value)}
+                                        className="select"
+                                        required
+                                    >
+                                        <option value="">Select week owner</option>
+                                        {WEEK_OWNERS.map(owner => (
+                                            <option key={owner} value={owner} className="capitalize">
+                                                {owner}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Week Start
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={formData.weekStart}
+                                        onChange={(e) => handleInputChange('weekStart', e.target.value)}
+                                        className="input"
+                                        required
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Week End
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={formData.weekEnd}
+                                        onChange={(e) => handleInputChange('weekEnd', e.target.value)}
+                                        className="input"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="card p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Performance Data</h3>
+                            
+                            <div className="space-y-6">
+                                {TEAM_MEMBERS.map(member => (
+                                    <div key={member} className="border border-gray-200 rounded-lg p-4">
+                                        <h4 className="font-medium text-gray-900 mb-3 capitalize">{member}</h4>
+                                        
+                                        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Assigned
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={formData.teamData[member]?.assigned || ''}
+                                                    onChange={(e) => handleTeamDataChange(member, 'assigned', e.target.value)}
+                                                    className="input"
+                                                />
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Completed
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={formData.teamData[member]?.completed || ''}
+                                                    onChange={(e) => handleTeamDataChange(member, 'completed', e.target.value)}
+                                                    className="input"
+                                                />
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Critical Bugs
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={formData.teamData[member]?.bugs?.critical || ''}
+                                                    onChange={(e) => handleTeamDataChange(member, 'bugs', {
+                                                        ...formData.teamData[member]?.bugs,
+                                                        critical: parseInt(e.target.value) || 0
+                                                    })}
+                                                    className="input"
+                                                />
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    High Bugs
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={formData.teamData[member]?.bugs?.high || ''}
+                                                    onChange={(e) => handleTeamDataChange(member, 'bugs', {
+                                                        ...formData.teamData[member]?.bugs,
+                                                        high: parseInt(e.target.value) || 0
+                                                    })}
+                                                    className="input"
+                                                />
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Medium Bugs
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={formData.teamData[member]?.bugs?.medium || ''}
+                                                    onChange={(e) => handleTeamDataChange(member, 'bugs', {
+                                                        ...formData.teamData[member]?.bugs,
+                                                        medium: parseInt(e.target.value) || 0
+                                                    })}
+                                                    className="input"
+                                                />
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Low Bugs
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={formData.teamData[member]?.bugs?.low || ''}
+                                                    onChange={(e) => handleTeamDataChange(member, 'bugs', {
+                                                        ...formData.teamData[member]?.bugs,
+                                                        low: parseInt(e.target.value) || 0
+                                                    })}
+                                                    className="input"
+                                                />
+                                            </div>
+                                        </div>
+                                        
+                                        {formData.teamData[member]?.tcr !== undefined && (
+                                            <div className="mt-3 flex space-x-4">
+                                                <div className="bg-blue-50 rounded-lg p-2">
+                                                    <span className="text-sm font-medium text-blue-900">
+                                                        TCR: {formData.teamData[member].tcr}%
+                                                    </span>
+                                                </div>
+                                                <div className="bg-green-50 rounded-lg p-2">
+                                                    <span className="text-sm font-medium text-green-900">
+                                                        TPR: {formData.teamData[member].tpr}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex space-x-4">
+                            <button
+                                type="button"
+                                onClick={calculateMetrics}
+                                className="btn btn-secondary"
+                            >
+                                Calculate TCR & TPR
+                            </button>
+                            
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="btn btn-success"
+                            >
+                                {loading ? 'Saving...' : 'Save Report'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            );
+        }
+
+        function ReportView({ report, onBack }) {
+            return (
+                <div className="space-y-6">
+                    <div className="flex items-center space-x-4">
+                        <button
+                            onClick={onBack}
+                            className="btn btn-secondary"
+                        >
+                            ← Back to Reports
+                        </button>
+                        <h2 className="text-2xl font-bold text-gray-900">
+                            Weekly Report - {report.weekStart} to {report.weekEnd}
+                        </h2>
+                    </div>
+
+                    <div className="card p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            <div>
+                                <h3 className="text-sm font-medium text-gray-500">Week Owner</h3>
+                                <p className="text-lg font-semibold text-gray-900 capitalize">{report.weekOwner}</p>
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-medium text-gray-500">Report Period</h3>
+                                <p className="text-lg font-semibold text-gray-900">
+                                    {report.weekStart} to {report.weekEnd}
+                                </p>
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-medium text-gray-500">Created</h3>
+                                <p className="text-lg font-semibold text-gray-900">
+                                    {new Date(report.createdAt).toLocaleDateString()}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold text-gray-900">Team Performance</h3>
+                            
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full table-auto">
+                                    <thead>
+                                        <tr className="border-b border-gray-200">
+                                            <th className="text-left py-3 px-4 font-medium text-gray-900">Team Member</th>
+                                            <th className="text-left py-3 px-4 font-medium text-gray-900">Assigned</th>
+                                            <th className="text-left py-3 px-4 font-medium text-gray-900">Completed</th>
+                                            <th className="text-left py-3 px-4 font-medium text-gray-900">TCR</th>
+                                            <th className="text-left py-3 px-4 font-medium text-gray-900">TPR</th>
+                                            <th className="text-left py-3 px-4 font-medium text-gray-900">Bugs</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Object.entries(report.teamData || {}).map(([member, data]) => (
+                                            <tr key={member} className="border-b border-gray-100">
+                                                <td className="py-3 px-4 font-medium text-gray-900 capitalize">{member}</td>
+                                                <td className="py-3 px-4 text-gray-700">{data.assigned}</td>
+                                                <td className="py-3 px-4 text-gray-700">{data.completed}</td>
+                                                <td className="py-3 px-4">
+                                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                                        data.tcr >= 80 ? 'bg-green-100 text-green-800' :
+                                                        data.tcr >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-red-100 text-red-800'
+                                                    }`}>
+                                                        {data.tcr}%
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                                        data.tpr >= 80 ? 'bg-green-100 text-green-800' :
+                                                        data.tpr >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-red-100 text-red-800'
+                                                    }`}>
+                                                        {data.tpr}%
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-gray-700">
+                                                    <div className="text-xs">
+                                                        <span className="text-red-600">C: {data.bugs?.critical || 0}</span>,{' '}
+                                                        <span className="text-orange-600">H: {data.bugs?.high || 0}</span>,{' '}
+                                                        <span className="text-yellow-600">M: {data.bugs?.medium || 0}</span>,{' '}
+                                                        <span className="text-blue-600">L: {data.bugs?.low || 0}</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
