@@ -31,8 +31,9 @@ type TeamMemberData struct {
 		Major    int `json:"major"`
 		Minor    int `json:"minor"`
 	} `json:"bugs"`
-	TCR float64 `json:"tcr"`
-	TPR float64 `json:"tpr"`
+	TCR     float64 `json:"tcr"`
+	TPR     float64 `json:"tpr"`
+	Comment string  `json:"comment"`
 }
 
 var db *sql.DB
