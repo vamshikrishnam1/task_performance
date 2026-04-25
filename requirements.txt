@@ -1,0 +1,20 @@
+# requirements.txt — covers the full ORS attribution spectrum
+
+# CRITICAL severity + KEV-listed + high EPSS → expect ORS ~95+, "Actively exploited"
+pyyaml==5.1
+paramiko==2.0.1
+
+# HIGH severity + moderate EPSS → expect ORS 60-75, "Likely target"
+urllib3==1.24.1
+django==1.11.0
+flask==0.10.1
+
+# MEDIUM severity + high EPSS (the "exploitable medium" that ORS surfaces) →
+# expect ORS 50+, "Likely target". This is the case the new gate catches —
+# old severity-only filter would skip these.
+requests==2.19.1
+jinja2==2.10
+
+# MEDIUM severity, low/no EPSS → expect ORS ~30, "Some risk" or "No known exploit".
+# Should NOT show up in PR annotations (gate is severity OR ORS≥50).
+werkzeug==0.14.1
